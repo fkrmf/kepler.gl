@@ -21,6 +21,8 @@
 import moment from 'moment';
 import {ascending, extent, histogram as d3Histogram, ticks} from 'd3-array';
 import keyMirror from 'keymirror';
+import booleanWithin from '@turf/boolean-within';
+import {point as turfPoint, polygon as turfPolygon} from '@turf/helpers';
 import {ALL_FIELD_TYPES} from 'constants/default-settings';
 import {maybeToDate, notNullorUndefined, unique} from './data-utils';
 import * as ScaleUtils from './data-scale-utils';
@@ -50,7 +52,8 @@ export const FILTER_TYPES = keyMirror({
   range: null,
   select: null,
   timeRange: null,
-  multiSelect: null
+  multiSelect: null,
+  polygon: null
 });
 
 export const PLOT_TYPES = keyMirror({
@@ -84,7 +87,8 @@ export const FILTER_COMPONENTS = {
   [FILTER_TYPES.select]: 'SingleSelectFilter',
   [FILTER_TYPES.multiSelect]: 'MultiSelectFilter',
   [FILTER_TYPES.timeRange]: 'TimeRangeFilter',
-  [FILTER_TYPES.range]: 'RangeFilter'
+  [FILTER_TYPES.range]: 'RangeFilter',
+  [FILTER_TYPES.polygon]: 'PolygonFilter'
 };
 
 export const DEFAULT_FILTER_STRUCTURE = {
@@ -147,15 +151,30 @@ export function shouldApplyfilter(filter, datasetId) {
   return valid;
 }
 
-/**
- * Validate saved filter config with new data,
- * calculate domain and fieldIdx based new fields and data
- *
- * @param {Object} dataset
- * @param {Object} filter - filter to be validate
- * @return {Object | null} - validated filter
- */
-export function validateFilterWithData(dataset, filter) {
+function validatePolygonFilter(dataset, filter, layers) {
+  // validate layerId if matches current layers
+  // validate value is a geojson
+  // validate feature has an ID matching filter.name
+  const {value, layerId, type} = filter;
+
+  if (!(value && value.id && layerId)) {
+    return null;
+  }
+
+  const layer = layers.find(l => l.id === layerId);
+
+  if (!layer) {
+    return null;
+  }
+
+  return isValidFilterValue({type, value}) ? filter : null;
+}
+
+const filterValidators = {
+  [FILTER_TYPES.polygon]: validatePolygonFilter
+};
+
+export function validateFilter(dataset, filter) {
   const {fields, allData} = dataset;
 
   // match filter.name to field.name
@@ -220,6 +239,50 @@ export function validateFilterWithData(dataset, filter) {
 
   return matchedFilter;
 }
+
+/**
+ * Validate saved filter config with new data,
+ * calculate domain and fieldIdx based new fields and data
+ *
+ * @param {Array<Object>} dataset.fields
+ * @param {Array<Object>} dataset.allData
+ * @param {Object} filter - filter to be validate
+ * @param {Array<Object>} layers - existing layers
+ * @return {Object | null} - validated filter
+ */
+export function validateFilterWithData(dataset, filter, layers) {
+  return filterValidators.hasOwnProperty(filter.type) ?
+    filterValidators[filter.type](dataset, filter, layers)
+    : validateFilter(dataset, filter);
+}
+
+/* Polygon Filter Helpers */
+export function updatePolygonFilter(filter, feature) {
+  const polygon = turfPolygon(feature.geometry.coordinates);
+  return {
+    ...filter,
+    // we merge both turf and feature properties into one
+    value: {
+      ...polygon,
+      id: feature.id,
+      properties: {
+        ...feature.properties,
+        ...polygon.properties
+      }
+    }
+  }
+}
+
+export function generatePolygonFilter(layer, feature) {
+  return updatePolygonFilter({
+    ...getDefaultFilter(layer.config.dataId),
+    fixedDomain: true,
+    type: FILTER_TYPES.polygon,
+    name: layer.config.label,
+    layerId: layer.id
+  }, feature);
+}
+/* Polygon Filter Helpers */
 
 /**
  * Get default filter prop based on field type
@@ -308,6 +371,10 @@ export function getFieldDomain(data, field) {
   }
 }
 
+// export function validateFilter(filter, dataId) {
+//   return filter.dataId === dataId && (filter.fieldIdx > -1 || filter.layerId) && filter.value !== null
+// }
+
 /**
  * Filter data based on an array of filters
  * @param {Object} dataset to perform the filter on
@@ -343,6 +410,8 @@ export function filterData(dataset, filters) {
     [[], []]
   );
 
+  // we save a reference of allData index here to access dataToFeature
+  // in geojson and hexagonId layer
   const {filtered, filteredIndex, filteredIndexForDomain} = data.reduce(
     (accu, d, i) => {
       // generate 2 sets of
@@ -383,7 +452,7 @@ export function filterData(dataset, filters) {
  * testing timestamp filters
  * @returns {Boolean} - whether value falls in the range of the filter
  */
-export function isDataMatchFilter(data, filter, i, field) {
+export function isDataMatchFilter(data, filter, i, field, layer = null) {
   const val = data[field.tableFieldIndex - 1];
   if (!filter.type) {
     return true;
@@ -406,6 +475,13 @@ export function isDataMatchFilter(data, filter, i, field) {
     case FILTER_TYPES.select:
       return filter.value === val;
 
+    case FILTER_TYPES.polygon:
+      if (!(layer && layer.config)) {
+        return true;
+      }
+      const {lat, lng} = layer.config.columns;
+      const point = [data[lng.fieldIdx], data[lat.fieldIdx]];
+      return isInPolygon(point, filter.value);
     default:
       return true;
   }
@@ -574,6 +650,19 @@ export function isInRange(val, domain) {
   return val >= domain[0] && val <= domain[1];
 }
 
+/**
+ * Determines whether a point is within the provided polygon
+ *
+ * @param point as input search [lat, lng]
+ * @param polygon Points must be within these (Multi)Polygon(s)
+ * @return {boolean}
+ */
+export function isInPolygon(point, polygon) {
+  const convertedPoint = turfPoint(point);
+  const present = booleanWithin(convertedPoint, polygon);
+  return present;
+}
+
 export function getTimeWidgetTitleFormatter(domain) {
   if (!Array.isArray(domain)) {
     return null;
@@ -610,10 +699,12 @@ export function getTimeWidgetHintFormatter(domain) {
  * @param {*} value - filter value
  * @returns {boolean} whether filter is value
  */
+/* eslint-disable complexity */
 export function isValidFilterValue({type, value}) {
   if (!type) {
     return false;
   }
+
   switch (type) {
     case FILTER_TYPES.select:
       return value === true || value === false;
@@ -628,10 +719,14 @@ export function isValidFilterValue({type, value}) {
     case FILTER_TYPES.input:
       return Boolean(value.length);
 
+    case FILTER_TYPES.polygon:
+      return Boolean(value && value.id && value.geometry && value.geometry.coordinates);
+
     default:
       return true;
   }
 }
+/* eslint-enable complexity */
 
 export function getFilterPlot(filter, allData) {
   if (filter.plotType === PLOT_TYPES.histogram || !filter.yAxis) {
