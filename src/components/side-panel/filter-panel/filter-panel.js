@@ -27,11 +27,11 @@ import FieldSelector from 'components/common/field-selector';
 import {Trash, Clock} from 'components/common/icons';
 import SourceDataSelectorFactory from 'components/side-panel/common/source-data-selector';
 import {StyledPanelHeader} from 'components/common/styled-components';
-
 import SingleSelectFilterFactory from 'components/filters/single-select-filter';
 import MultiSelectFilterFactory from 'components/filters/multi-select-filter';
 import TimeRangeFilterFactory from 'components/filters/time-range-filter';
 import RangeFilterFactory from 'components/filters/range-filter';
+import PolygonFilterFactory from 'components/filters/polygon-filter';
 import {FILTER_TYPES, FILTER_COMPONENTS} from 'utils/filter-utils';
 import {ALL_FIELD_TYPES} from 'constants/default-settings';
 
@@ -63,7 +63,8 @@ FilterPanelFactory.deps = [
   SingleSelectFilterFactory,
   MultiSelectFilterFactory,
   TimeRangeFilterFactory,
-  RangeFilterFactory
+  RangeFilterFactory,
+  PolygonFilterFactory
 ];
 
 function FilterPanelFactory(
@@ -71,13 +72,15 @@ function FilterPanelFactory(
   SingleSelectFilter,
   MultiSelectFilter,
   TimeRangeFilter,
-  RangeFilter
+  RangeFilter,
+  PolygonFilter
 ) {
   const FilterComponents = {
     SingleSelectFilter,
     MultiSelectFilter,
     TimeRangeFilter,
-    RangeFilter
+    RangeFilter,
+    PolygonFilter
   };
 
   return class FilterPanel extends Component {
@@ -95,8 +98,7 @@ function FilterPanelFactory(
     };
 
     /* selectors */
-    fieldsSelector = props =>
-      (props.filter.dataId && props.datasets[props.filter.dataId].fields) || [];
+    fieldsSelector = props => props.filter.dataId && props.datasets[props.filter.dataId[0]].fields || [];
     filterSelector = props => props.filters;
     nameSelector = props => props.filter.name;
     dataIdSelector = props => props.filter.dataId;
@@ -135,8 +137,10 @@ function FilterPanelFactory(
 
       return (
         <StyledFilterPanel className="filter-panel">
-          <StyledFilterHeader className="filter-panel__header"
-                              labelRCGColorValues={datasets[dataId].color}>
+          <StyledFilterHeader
+            className="filter-panel__header"
+            labelRCGColorValues={datasets[dataId].color}
+          >
             <FieldSelector
               inputTheme="secondary"
               fields={allAvailableFields}

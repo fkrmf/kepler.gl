@@ -29,19 +29,21 @@ const StyledInfo = styled.div`
   }
 `;
 
-const PolygonFilter = React.memo(({dataset, filter, setFilter}) => (
-  <SidePanelSection>
-    <StyledInfo>
-      <PanelLabel className="label">Layer</PanelLabel>
-      <PanelValue className="value">{filter.name}</PanelValue>
-    </StyledInfo>
-    <StyledInfo>
-      <PanelLabel className="label">Count</PanelLabel>
-      <PanelValue className="value">{dataset.data.length}</PanelValue>
-    </StyledInfo>
-  </SidePanelSection>
-));
+function PolygonFilterFactory() {
+  const PolygonFilter = React.memo(({filter}) => (
+    <SidePanelSection>
+      {filter.layerId.map(layerId => (
+        <StyledInfo>
+          <PanelLabel className="label">Layer</PanelLabel>
+          <PanelValue className="value">{layerId}</PanelValue>
+        </StyledInfo>
+      ))}
+    </SidePanelSection>
+  ));
 
-PolygonFilter.displayName = 'PolygonFilter';
+  PolygonFilter.displayName = 'PolygonFilter';
 
-export default PolygonFilter;
+  return PolygonFilter;
+}
+
+export default PolygonFilterFactory

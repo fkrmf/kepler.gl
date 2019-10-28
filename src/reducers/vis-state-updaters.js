@@ -118,7 +118,8 @@ export const defaultAnimationConfig ={
   domain: null,
   currentTime: null,
   speed: 1
-}
+};
+
 export const DEFAULT_EDITOR = {
   features: [],
   selectedFeature: null
@@ -787,10 +788,18 @@ export const removeFilterUpdater = (state, action) => {
     ...state.filters.slice(idx + 1, state.filters.length)
   ];
 
+  const filter = state.filters[idx];
+
   const newState = {
     ...state,
     datasets: applyFiltersToDatasets(dataId, state.datasets, newFilters, state.layers),
-    filters: newFilters
+    filters: newFilters,
+    editor: {
+      ...state.editor,
+      features: filter.type !== FILTER_TYPES.polygon ?
+        state.editor.features : state.editor.features.filter(f => f.id !== filter.value.id),
+      selectedFeature: null
+    }
   };
 
   return updateAllLayerDomainData(newState, dataId);
@@ -849,7 +858,7 @@ export const removeLayerUpdater = (state, {idx}) => {
       .map(pid => (pid > idx ? pid - 1 : pid)),
     clicked: layerToRemove.isLayerHovered(clicked) ? undefined : clicked,
     hoverInfo: layerToRemove.isLayerHovered(hoverInfo) ? undefined : hoverInfo,
-    splitMaps: newMaps,
+    splitMaps: newMaps
     // TODO: update filters, create helper to remove layer form filter (remove layerid and dataid) if mapped
   };
 

@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-import React, {Component} from 'react';
+import React, {Component, useCallback, useState} from 'react';
 import PropTypes from 'prop-types';
 import styled from 'styled-components';
 import {Editor} from 'react-map-gl-draw';
@@ -95,21 +95,6 @@ class Draw extends Component {
     }
   };
 
-  _onSelect = ({selectedFeatureId, sourceEvent}) => {
-    // we don't need to mouse position in redux state
-    this.setState({
-      ...(sourceEvent.rightButton ? {
-        showActions: true,
-        lastPosition: {
-          x: sourceEvent.changedPointers[0].clientX,
-          y: sourceEvent.changedPointers[0].clientY
-        }
-      } : null)
-    }, () => {
-      this.props.onSelect({selectedFeatureId});
-    });
-  };
-
   _onDeleteSelectedFeature = () => {
     if (this.state.showActions) {
       this.setState({showActions: false});
@@ -147,6 +132,7 @@ class Draw extends Component {
 
     const {selectedFeature = {}} = editor;
     const selectedFeatureId = (selectedFeature || {}).id;
+    const currentFilter = filters.find(f => f.value.id === selectedFeatureId);
 
     return (
       <StyledWrapper
@@ -170,8 +156,7 @@ class Draw extends Component {
           <FeatureActionPanel
             datasets={datasets}
             layers={layers}
-            filters={filters}
-            currentFeature={selectedFeature}
+            currentFilter={currentFilter}
             onClose={this._closeFeatureAction}
             onDeleteFeature={this._onDeleteSelectedFeature}
             onToggleLayer={this._onToggleLayer}

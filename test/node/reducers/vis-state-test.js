@@ -28,6 +28,7 @@ import reducer from 'reducers/vis-state';
 
 import {
   INITIAL_VIS_STATE,
+  DEFAULT_EDITOR,
   defaultAnimationConfig
 } from 'reducers/vis-state-updaters';
 
@@ -927,7 +928,8 @@ test('#visStateReducer -> REMOVE_FILTER', t => {
       }
     },
     layers: [],
-    layerData: []
+    layerData: [],
+    editor: DEFAULT_EDITOR
   };
 
   // remove smoothie filter
@@ -959,9 +961,9 @@ test('#visStateReducer -> REMOVE_FILTER', t => {
           filteredIndexForDomain: [0, 1, 2, 3]
         }
       },
-
       layers: [],
-      layerData: []
+      layerData: [],
+      editor: DEFAULT_EDITOR
     },
     'should remove filter and recalculate data only for associated dataset'
   );
@@ -4066,6 +4068,13 @@ test('#visStateReducer -> POLYGON: delete polygon filter', t => {
     newReducer.filters,
     [],
     'Should have removed the created polygon filter'
+  );
+
+  // deleting the filter will also delete the feature
+  t.deepEqual(
+    newReducer.editor.features.length,
+    0,
+    'Should have removed the feature'
   );
 
   t.end();
