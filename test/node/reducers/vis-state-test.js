@@ -3380,8 +3380,6 @@ test('#visStateReducer -> LAYER_COLOR_UI_CHANGE. colorRangeConfig.step', t => {
     })
   );
 
-  const {colorRangeConfig} = prepareState.layers[0].config.colorUI.colorRange;
-
   // set color range steps
   const nextState = reducer(
     prepareState,
@@ -3800,9 +3798,7 @@ test('#visStateReducer -> LAYER_COLOR_UI_CHANGE. custom Palette', t => {
 test('#visStateReducer -> POLYGON: Add/Remove new polygon feature', t => {
   const expectedFeatures = [mockPolygonFeature];
   let newReducer = reducer(
-    {
-      ...INITIAL_VIS_STATE
-    },
+    INITIAL_VIS_STATE,
     VisStateActions.setFeatures([mockPolygonFeature])
   );
 
@@ -3842,12 +3838,18 @@ test('#visStateReducer -> POLYGON: Add/Remove new polygon feature', t => {
   t.end();
 });
 
-test('#visStateReducer -> POLYGON: Add/remove new polygon feature and set it as filter', t => {
+test('#visStateReducer -> POLYGON: Create polygon filter', t => {
   const state = {
-    ...InitialVisState,
+    ...INITIAL_VIS_STATE,
     datasets: {
       puppy: {
         data: mockData.data,
+        allData: mockData.data,
+        fields: mockData.fields
+      },
+      cat: {
+        data: mockData.data,
+        allData: mockData.data,
         fields: mockData.fields
       }
     },
@@ -3879,15 +3881,15 @@ test('#visStateReducer -> POLYGON: Add/remove new polygon feature and set it as 
   );
 
   const expectedFilter = {
-    dataId: 'puppy',
+    dataId: ['puppy'],
     freeze: false,
     fixedDomain: true,
     enlarged: false,
     isAnimating: false,
     speed: 1,
-    name: 'new layer',
+    name: ['new layer'],
     type: 'polygon',
-    fieldIdx: null,
+    fieldIdx: [],
     domain: null,
     value: {
       type: 'Feature',
@@ -3910,7 +3912,7 @@ test('#visStateReducer -> POLYGON: Add/remove new polygon feature and set it as 
     plotType: 'histogram',
     yAxis: null,
     interval: null,
-    layerId: newReducer.layers[0].id
+    layerId: [newReducer.layers[0].id]
   };
 
   const {id, ...newFilter} = newReducer.filters[0];
@@ -3921,10 +3923,143 @@ test('#visStateReducer -> POLYGON: Add/remove new polygon feature and set it as 
     'Should have created a polygon filter'
   );
 
-  // unset it as filter
+  // TODO: add filter to a new layer from the same dataset
+
+  // Add a second layer to the same dataset
+  newReducer = reducer(newReducer, VisStateActions.addLayer());
+
+  t.equal(
+    newReducer.layers.length,
+    2,
+    'Should have created a second layer'
+  );
+
+  // set polygon filter for the second layer
+  newReducer = reducer(
+    newReducer,
+    VisStateActions.togglePolygonFilter(newReducer.layers[1], mockPolygonFeature.id)
+  );
+
+  t.equal(
+    newReducer.filters.length,
+    1,
+    'Should still have 1 polygon filter'
+  );
+
+  t.equal(
+    newReducer.filters[0].layerId.length,
+    2,
+    'Should have two values in filter.layerId'
+  );
+
+  // Add a new dataset layer to the same dataset
+  newReducer = reducer(newReducer, VisStateActions.addLayer({dataId: 'cat'}));
+  t.equal(
+    newReducer.layers.length,
+    3,
+    'Should have created a third layer'
+  );
+
+  // Set polygon for a different dataset layer
+  newReducer = reducer(
+    newReducer,
+    VisStateActions.togglePolygonFilter(newReducer.layers[2], mockPolygonFeature.id)
+  );
+
+  t.equal(
+    newReducer.filters[0].layerId.length,
+    3,
+    'Should 3 values in filter.layerId'
+  );
+
+  t.equal(
+    newReducer.filters[0].dataId.length,
+    2,
+    'Should have two values in filter.dataId'
+  );
+
+  // TODO: invert filter
+
+  // remove the second layer from the filter
+  newReducer = reducer(
+    newReducer,
+    VisStateActions.togglePolygonFilter(newReducer.layers[1], mockPolygonFeature.id)
+  );
+
+  t.equal(
+    newReducer.filters[0].layerId.length,
+    2,
+    'Should have two values in filter.layerId after removing second element'
+  );
+
+  t.equal(
+    newReducer.filters[0].dataId.length,
+    2,
+    'Should have two values in filter.dataId after removing one layer'
+  );
+
+  // remove the first layer from the filter
   newReducer = reducer(
     newReducer,
     VisStateActions.togglePolygonFilter(newReducer.layers[0], mockPolygonFeature.id)
+  );
+
+  t.equal(
+    newReducer.filters[0].layerId.length,
+    1,
+    'Should have one value in filter.layerId after removing first element'
+  );
+
+  t.equal(
+    newReducer.filters[0].dataId.length,
+    1,
+    'Should have one value in filter.dataId after removing first layer'
+  );
+
+  t.end();
+});
+
+test('#visStateReducer -> POLYGON: delete polygon filter', t => {
+  const state = {
+    ...INITIAL_VIS_STATE,
+    datasets: {
+      puppy: {
+        data: mockData.data,
+        allData: mockData.data,
+        fields: mockData.fields
+      }
+    },
+    layers: [],
+    layerData: []
+  };
+
+  let newReducer = reducer(state, VisStateActions.addLayer());
+
+  t.equal(
+    newReducer.layers.length,
+    1,
+    'Should have created a new layer'
+  );
+
+  // add new polygon feature
+  newReducer = reducer(newReducer, VisStateActions.setFeatures([mockPolygonFeature]));
+
+  // set selected feature
+  newReducer = reducer(
+    newReducer,
+    VisStateActions.setSelectedFeature({selectedFeatureId: mockPolygonFeature.id})
+  );
+
+  // set it as filter
+  newReducer = reducer(
+    newReducer,
+    VisStateActions.togglePolygonFilter(newReducer.layers[0], mockPolygonFeature.id)
+  );
+
+  // unset it as filter
+  newReducer = reducer(
+    newReducer,
+    VisStateActions.removeFilter(0)
   );
 
   t.deepEqual(

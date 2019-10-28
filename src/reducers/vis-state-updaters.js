@@ -21,7 +21,6 @@
 import {console as Console} from 'global/window';
 import Task, {disableStackCapturing, withTask} from 'react-palm/tasks';
 import cloneDeep from 'lodash.clonedeep';
-import uniq from 'lodash.uniq';
 
 // Tasks
 import {LOAD_FILE_TASK} from 'tasks/tasks';
@@ -36,10 +35,8 @@ import {
   FILTER_TYPES,
   FILTER_UPDATER_PROPS,
   LIMITED_FILTER_EFFECT_PROPS,
-
   applyFilterFieldName,
   applyFiltersToDatasets,
-  filterData,
   generatePolygonFilter,
   getDefaultFilter,
   getFilterPlot,
@@ -319,16 +316,8 @@ function updateTextLabelPropAndValue(idx, prop, value, textLabel) {
   return newTextLabel;
 }
 
-function getFiltersIdxByFeatureId(state, featureId) {
-  return state.filters.reduce((acc, f, index) => {
-    if (f.type === FILTER_TYPES.polygon && f.value.id === featureId) {
-      return [
-        ...acc,
-        index
-      ];
-    }
-    return acc;
-  }, []);
+function getFilterIdxByFeatureId(state, featureId) {
+  return state.filters.findIndex(f => f.type === FILTER_TYPES.polygon && f.value.id === featureId);
 }
 
 export function layerTextLabelChangeUpdater(state, action) {
@@ -800,7 +789,7 @@ export const removeFilterUpdater = (state, action) => {
 
   const newState = {
     ...state,
-    datasets: applyFiltersToDatasets(dataId, state.datasets, newFilters),
+    datasets: applyFiltersToDatasets(dataId, state.datasets, newFilters, state.layers),
     filters: newFilters
   };
 
@@ -860,7 +849,8 @@ export const removeLayerUpdater = (state, {idx}) => {
       .map(pid => (pid > idx ? pid - 1 : pid)),
     clicked: layerToRemove.isLayerHovered(clicked) ? undefined : clicked,
     hoverInfo: layerToRemove.isLayerHovered(hoverInfo) ? undefined : hoverInfo,
-    splitMaps: newMaps
+    splitMaps: newMaps,
+    // TODO: update filters, create helper to remove layer form filter (remove layerid and dataid) if mapped
   };
 
   return updateAnimationDomain(newState);
@@ -1520,41 +1510,26 @@ export function setFeaturesUpdater(state, {features = []}) {
     return newState;
   }
 
-  const newFilters = state.filters.map(f => {
-    if (f.type === FILTER_TYPES.polygon && f.value.id === selectedFeature.id) {
-      return updatePolygonFilter(f, feature)
-    }
-    return f;
-  });
+  const filtersIdx = getFilterIdxByFeatureId(newState, selectedFeature.id);
 
-  const filtersIdx = getFiltersIdxByFeatureId(newState, selectedFeature.id);
+  const filter = state.filters[filtersIdx];
+
+  const newFilter = updatePolygonFilter(filter, feature);
+
+  const newFilters = Object.assign([...state.filters], {[filtersIdx]: newFilter});
 
   // no filters found
-  if (filtersIdx.length === 0) {
+  if (filtersIdx === -1) {
     return newState;
   }
 
-  const datasets = filtersIdx.reduce((acc, idx) => {
-    const dataId = state.filters[idx].dataId;
-    return {
-      ...acc,
-      [dataId]: {
-        ...state.datasets[dataId],
-        ...filterData(state.datasets[dataId].allData, dataId, newFilters, state.layers)
-      }
-    }
-  }, state.datasets);
-
   newState = {
     ...state,
-    // setting filters
-    filters: newFilters,
-    // updating datasets
-    datasets
+    datasets: applyFiltersToDatasets(newFilter.dataId, newState.datasets, newFilters, newState.layers),
+    filters: newFilters
   };
 
-  return updateAllLayerDomainData(newState, Object.keys(datasets));
-
+  return updateAllLayerDomainData(newState, Object.keys(newState.datasets));
 }
 
 /**
@@ -1595,14 +1570,14 @@ export function deleteFeatureUpdater(state, {featureId}) {
     }
   };
 
-  const filtersIdx = getFiltersIdxByFeatureId(state, featureId);
+  const filterIdx = getFilterIdxByFeatureId(state, featureId);
 
   const newState = {
     ...state,
     editor: newEditor
   };
 
-  return filtersIdx.length === 0 ? newState : removeFilterUpdater(newState, filtersIdx);
+  return filterIdx === -1 ? newState : removeFilterUpdater(newState, filterIdx);
 }
 
 /**
@@ -1617,39 +1592,62 @@ export function deleteFeatureUpdater(state, {featureId}) {
 export function togglePolygonFilterUpdater(state, payload) {
   const {layer, featureId} = payload;
   const {dataId} = layer.config;
-  const filtersIdx = getFiltersIdxByFeatureId(state, featureId);
-  const currentFilterIdx = filtersIdx.find(idx => state.filters[idx].layerId === layer.id);
+  const filterIdx = getFilterIdxByFeatureId(state, featureId);
+  const datasetIds = Array.isArray(dataId) ? dataId : [dataId];
 
-  // if no filters or didn't find a filter with the given feature and layer, create new one
-  if (filtersIdx.length === 0 || currentFilterIdx === undefined) {
-    const {features: editorFeatures} = state.editor;
-    const currentFeature = editorFeatures.find(feat => feat.id === featureId);
+  const {features: editorFeatures} = state.editor;
+  const currentFeature = editorFeatures.find(feat => feat.id === featureId);
 
-    const polygonFilter = generatePolygonFilter(layer, currentFeature);
-    const {allData} = state.datasets[dataId];
+  let newFilter = null;
+  let newFilters = null;
 
-    const newFilters = [
-      ...state.filters,
-      polygonFilter
-    ];
+  // If filter already exists, we need to find out if the current layer is already included
+  if (filterIdx >= 0) {
+    const {layerId} = state.filters[filterIdx];
 
-    const newState = {
-      ...state,
-      // setting fitlers
-      filters: newFilters,
-      // updating datasets
-      datasets: {
-        ...state.datasets,
-        [dataId]: {
-          ...state.datasets[dataId],
-          ...filterData(allData, dataId, newFilters, state.layers)
-        }
-      }
+    const isLayerIncluded = layerId.includes(layer.id);
+    const filter = state.filters[filterIdx];
+    const newLayerId =  isLayerIncluded ?
+      filter.layerId.filter(l => l !== layer.id) : [
+        ...filter.layerId,
+        layer.id
+      ];
+
+    // the list of datasets is going to have the same length or fewer elements
+    const newDataId = newLayerId.reduce((acc, lId) => {
+      const currentLayer = state.layers.find(l => l.id === lId);
+      const isCurrentLayerDataIdIncluded = acc.includes(currentLayer.config.dataId);
+
+      // if the datasetId is already included in dataId we skip it otherwise we add it
+      return isCurrentLayerDataIdIncluded ? acc : [
+        ...acc,
+        currentLayer.config.dataId
+      ]
+    }, []);
+
+    newFilter = {
+      ...filter,
+      layerId: newLayerId,
+      dataId: newDataId
     };
 
-    return updateAllLayerDomainData(newState, dataId, polygonFilter);
+    newFilters = Object.assign([...state.filters], {[filterIdx]: newFilter});
+
+  } else {
+    newFilter = generatePolygonFilter(layer, currentFeature);
+
+    newFilters = [
+      ...state.filters,
+      newFilter
+    ];
   }
 
-  // if one of the filters is mapped against the current layer remove the filter
-  return removeFilterUpdater(state, {idx: currentFilterIdx});
+  // filter data
+  const newState = {
+    ...state,
+    datasets: applyFiltersToDatasets(datasetIds, state.datasets, newFilters, state.layers),
+    filters: newFilters
+  };
+
+  return updateAllLayerDomainData(newState, dataId, newFilter);
 }

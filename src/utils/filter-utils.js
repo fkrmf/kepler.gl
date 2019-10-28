@@ -256,7 +256,6 @@ export function validateFilterWithData(dataset, filter, layers) {
     : validateFilter(dataset, filter);
 }
 
-/* Polygon Filter Helpers */
 export function updatePolygonFilter(filter, feature) {
   const polygon = turfPolygon(feature.geometry.coordinates);
   return {
@@ -278,11 +277,10 @@ export function generatePolygonFilter(layer, feature) {
     ...getDefaultFilter(layer.config.dataId),
     fixedDomain: true,
     type: FILTER_TYPES.polygon,
-    name: layer.config.label,
-    layerId: layer.id
+    name: [layer.config.label],
+    layerId: [layer.id]
   }, feature);
 }
-/* Polygon Filter Helpers */
 
 /**
  * Get default filter prop based on field type
@@ -371,16 +369,13 @@ export function getFieldDomain(data, field) {
   }
 }
 
-// export function validateFilter(filter, dataId) {
-//   return filter.dataId === dataId && (filter.fieldIdx > -1 || filter.layerId) && filter.value !== null
-// }
-
 /**
  * Filter data based on an array of filters
  * @param {Object} dataset to perform the filter on
  * @param {Object[]} filters list of filters to use against dataset
+ * @param {Object[]} layers list of layers to perform filter on
  */
-export function filterData(dataset, filters) {
+export function filterData(dataset, filters, layers) {
   const {allData: data, fields} = dataset;
 
   if (!filters.length) {
@@ -417,7 +412,7 @@ export function filterData(dataset, filters) {
       // generate 2 sets of
       // filter data used to calculate layer Domain
       const matchForDomain = dynamicDomainFilters.every(filter => {
-        return isDataMatchFilter(d, filter, i, filtersToFields[filter.id]);
+        return isDataMatchFilter(d, filter, i, filtersToFields[filter.id], layers);
       });
 
       if (matchForDomain) {
@@ -425,7 +420,7 @@ export function filterData(dataset, filters) {
 
         // filter data for render
         const matchForRender = fixedDomainFilters.every(filter =>
-          isDataMatchFilter(d, filter, i, filtersToFields[filter.id])
+          isDataMatchFilter(d, filter, i, filtersToFields[filter.id], layers)
         );
 
         if (matchForRender) {
@@ -442,6 +437,43 @@ export function filterData(dataset, filters) {
   return {data: filtered, filteredIndex, filteredIndexForDomain};
 }
 
+const filterDataMatchers = {
+  [FILTER_TYPES.range]: (data, filter, index, field) => {
+    const val = field ? data[field.tableFieldIndex - 1] : null;
+    return isInRange(val, filter.value)
+  },
+  [FILTER_TYPES.timeRange]: (data, filter, index, field) => {
+    const val = field ? data[field.tableFieldIndex - 1] : null;
+    const timeVal = field && field.filterProp && Array.isArray(field.filterProp.mappedValue)
+      ? field.filterProp.mappedValue[index]
+      : moment.utc(val).valueOf();
+
+    return isInRange(timeVal, filter.value);
+  },
+  [FILTER_TYPES.multiSelect]: (data, filter, index, field) => {
+    const val = field ? data[field.tableFieldIndex - 1] : null;
+    return filter.value.includes(val)
+  },
+  [FILTER_TYPES.select]: (data, filter, index, field) => {
+    const val = field ? data[field.tableFieldIndex - 1] : null;
+    return val === filter.value
+  },
+  [FILTER_TYPES.polygon]: (data, filter, index, field, layers) => {
+    if (!(layers || layers.length === 0)) {
+      return true;
+    }
+
+    // determine which layers to apply the filter on
+    const currentLayers = filter.layerId.map(id => layers.find(l => l.id === id));
+
+    return currentLayers.every(layer => {
+      const {lat, lng} = layer.config.columns;
+      const point = [data[lng.fieldIdx], data[lat.fieldIdx]];
+      return isInPolygon(point, filter.value);
+    });
+  }
+};
+
 /**
  * Check if value is in range of filter
  *
@@ -450,41 +482,12 @@ export function filterData(dataset, filters) {
  * @param {number} i
  * @param {field} field containing values to test data against. This is used only when
  * testing timestamp filters
+ * @param layers to perform filters upon
  * @returns {Boolean} - whether value falls in the range of the filter
  */
-export function isDataMatchFilter(data, filter, i, field, layer = null) {
-  const val = data[field.tableFieldIndex - 1];
-  if (!filter.type) {
-    return true;
-  }
-
-  switch (filter.type) {
-    case FILTER_TYPES.range:
-      return isInRange(val, filter.value);
-
-    case FILTER_TYPES.timeRange:
-      const timeVal = field && field.filterProp && Array.isArray(field.filterProp.mappedValue)
-        ? field.filterProp.mappedValue[i]
-        : moment.utc(val).valueOf();
-
-      return isInRange(timeVal, filter.value);
-
-    case FILTER_TYPES.multiSelect:
-      return filter.value.includes(val);
-
-    case FILTER_TYPES.select:
-      return filter.value === val;
-
-    case FILTER_TYPES.polygon:
-      if (!(layer && layer.config)) {
-        return true;
-      }
-      const {lat, lng} = layer.config.columns;
-      const point = [data[lng.fieldIdx], data[lat.fieldIdx]];
-      return isInPolygon(point, filter.value);
-    default:
-      return true;
-  }
+export function isDataMatchFilter(data, filter, i, field, layers = null) {
+  return !filter.type || !filterDataMatchers.hasOwnProperty(filter.type)
+    ? true : filterDataMatchers[filter.type](data, filter, i, field, layers);
 }
 
 /**
@@ -771,10 +774,10 @@ export function getDefaultFilterPlotType(filter) {
  * @param filters
  * @return {Object} filtered dataset
  */
-export function applyFilterToDataset(dataset, filters) {
+export function applyFilterToDataset(dataset, filters, layers) {
   return {
     ...dataset,
-    ...filterData(dataset, filters)
+    ...filterData(dataset, filters, layers)
   };
 }
 
@@ -785,12 +788,15 @@ export function applyFilterToDataset(dataset, filters) {
  * @param filters all filters to be applied to datasets
  * @return {{[datasetId: string]: Object}} datasets - new updated datasets
  */
-export function applyFiltersToDatasets(datasetIds, datasets, filters) {
+export function applyFiltersToDatasets(datasetIds, datasets, filters, layers) {
   const dataIds = Array.isArray(datasetIds) ? datasetIds : [datasetIds];
-  return dataIds.reduce((acc, dataIdentifier) => ({
-    ...acc,
-    [dataIdentifier]: applyFilterToDataset(datasets[dataIdentifier], filters)
-  }), datasets);
+
+  return dataIds.reduce((acc, dataIdentifier) => {
+    const layersToFilter = (layers || []).filter(l => l.config.dataId === dataIdentifier);
+    return {
+      ...acc,
+      [dataIdentifier]: applyFilterToDataset(datasets[dataIdentifier], filters, layersToFilter)
+    }}, datasets);
 }
 
 /**

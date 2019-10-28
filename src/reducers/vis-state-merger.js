@@ -31,7 +31,7 @@ import {
 import {getInitialMapLayersForSplitMap} from 'utils/split-map-utils';
 
 import {LAYER_BLENDINGS} from 'constants/default-settings';
-import {mergeFilterProps, FILTER_TYPES, isValidFilterValue} from '../utils/filter-utils';
+import {mergeFilterProps, FILTER_TYPES} from '../utils/filter-utils';
 
 /**
  * Merge loaded filters with current state, if no fields or data are loaded
@@ -108,13 +108,13 @@ export function mergeFilters(state, filtersToMerge) {
     filters: updatedFilters,
     datasets: updatedDatasets,
     filterToBeMerged: unmerged,
-    // editor: {
-    //   ...state.editor,
-    //   features: [
-    //     ...(state.editor || {}).features,
-    //     ...features
-    //   ]
-    // }
+    editor: {
+      ...state.editor,
+      features: [
+        ...(state.editor || {}).features,
+        ...features
+      ]
+    }
   };
 }
 

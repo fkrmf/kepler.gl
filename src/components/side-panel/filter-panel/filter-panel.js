@@ -34,7 +34,6 @@ import TimeRangeFilterFactory from 'components/filters/time-range-filter';
 import RangeFilterFactory from 'components/filters/range-filter';
 import {FILTER_TYPES, FILTER_COMPONENTS} from 'utils/filter-utils';
 import {ALL_FIELD_TYPES} from 'constants/default-settings';
-import {FieldListItemFactory} from '../../common/field-selector';
 
 const StyledFilterPanel = styled.div`
   margin-bottom: 12px;
@@ -42,12 +41,6 @@ const StyledFilterPanel = styled.div`
 
   .filter-panel__filter {
     margin-top: 24px;
-  }
-  
-  .list__item__anchor {
-    .polygon {
-      text-transform: capitalize;
-    }
   }
 `;
 
@@ -70,8 +63,7 @@ FilterPanelFactory.deps = [
   SingleSelectFilterFactory,
   MultiSelectFilterFactory,
   TimeRangeFilterFactory,
-  RangeFilterFactory,
-  FieldListItemFactory
+  RangeFilterFactory
 ];
 
 function FilterPanelFactory(
@@ -79,8 +71,7 @@ function FilterPanelFactory(
   SingleSelectFilter,
   MultiSelectFilter,
   TimeRangeFilter,
-  RangeFilter,
-  FieldListItem
+  RangeFilter
 ) {
   const FilterComponents = {
     SingleSelectFilter,
@@ -126,10 +117,6 @@ function FilterPanelFactory(
         )
     );
 
-    _setFilter = (idx, value) => {
-      this.props.setFilter(idx, 'name', value.name);
-    };
-
     render() {
       const {
         datasets,
@@ -149,7 +136,7 @@ function FilterPanelFactory(
       return (
         <StyledFilterPanel className="filter-panel">
           <StyledFilterHeader className="filter-panel__header"
-            labelRCGColorValues={datasets[dataId].color}>
+                              labelRCGColorValues={datasets[dataId].color}>
             <FieldSelector
               inputTheme="secondary"
               fields={allAvailableFields}
@@ -157,22 +144,6 @@ function FilterPanelFactory(
               erasable={false}
               onSelect={value => setFilter(idx, 'name', value.name)}
             />
-            <div style={{flexGrow: 1}}>
-              {type === FILTER_TYPES.polygon ?
-                (
-                  <FieldListItem value={{name: type, type: ALL_FIELD_TYPES.geojson}} />
-                )
-                : (
-                  <FieldSelector
-                    inputTheme="secondary"
-                    fields={allAvailableFields}
-                    value={name}
-                    erasable={false}
-                    onSelect={value => setFilter(idx, 'name', value.name)}
-                  />
-                )
-              }
-            </div>
             <PanelHeaderAction
               id={filter.id}
               tooltip="delete"
@@ -192,7 +163,7 @@ function FilterPanelFactory(
             )}
           </StyledFilterHeader>
           <StyledFilterContent className="filter-panel__content">
-            {type !== FILTER_TYPES.polygon && Object.keys(datasets).length > 1 && (
+            {Object.keys(datasets).length > 1 && (
               <SourceDataSelector
                 inputTheme="secondary"
                 datasets={datasets}
@@ -205,7 +176,6 @@ function FilterPanelFactory(
             !enlarged && (
               <div className="filter-panel__filter">
                 <FilterComponent
-                  dataset={datasets[filter.dataId]}
                   filter={filter}
                   idx={idx}
                   isAnyFilterAnimating={isAnyFilterAnimating}
