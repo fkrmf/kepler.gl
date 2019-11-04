@@ -19,37 +19,34 @@
 // THE SOFTWARE.
 
 import React from 'react';
-import styled from 'styled-components';
-import {PanelLabel, PanelValue, SidePanelSection} from '../common/styled-components';
+import SourceDataSelectorFactory from 'components/side-panel/common/source-data-selector';
 
-const StyledInfo = styled.div`
-  display: flex;
-  .label {
-    flex-grow: 1;
-  }
-`;
+EmptyFilterPanelFactory.deps = [
+  SourceDataSelectorFactory
+];
 
-function PolygonFilterFactory() {
-  const PolygonFilter = React.memo(({
+function EmptyFilterPanelFactory(
+  SourceDataSelector
+) {
+  const EmptyFilterPanel = React.memo(({
+    datasets,
     filter,
     setFilter
-  }) => {
-    const {layerId} = filter;
-    return (
-      <SidePanelSection>
-        {layerId.map(id => (
-          <StyledInfo>
-            <PanelLabel className="label">Layer</PanelLabel>
-            <PanelValue className="value">{id}</PanelValue>
-          </StyledInfo>
-        ))}
-      </SidePanelSection>
-    )
-  });
+  }) => (
+    <>
+    {Object.keys(datasets).length > 1 && (
+      <SourceDataSelector
+        inputTheme="secondary"
+        datasets={datasets}
+        disabled={filter.freeze}
+        dataId={filter.dataId}
+        onSelect={setFilter}
+      />
+    )}
+    </>
+  ));
 
-  PolygonFilter.displayName = 'PolygonFilter';
-
-  return PolygonFilter;
+  return EmptyFilterPanel;
 }
 
-export default PolygonFilterFactory
+export default EmptyFilterPanelFactory;

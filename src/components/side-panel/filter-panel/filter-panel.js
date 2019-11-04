@@ -22,18 +22,16 @@ import React, {Component} from 'react';
 import PropTypes from 'prop-types';
 import {createSelector} from 'reselect';
 import styled from 'styled-components';
-import PanelHeaderAction from 'components/side-panel/panel-header-action';
-import FieldSelector from 'components/common/field-selector';
-import {Trash, Clock} from 'components/common/icons';
-import SourceDataSelectorFactory from 'components/side-panel/common/source-data-selector';
-import {StyledPanelHeader} from 'components/common/styled-components';
-import SingleSelectFilterFactory from 'components/filters/single-select-filter';
-import MultiSelectFilterFactory from 'components/filters/multi-select-filter';
-import TimeRangeFilterFactory from 'components/filters/time-range-filter';
-import RangeFilterFactory from 'components/filters/range-filter';
-import PolygonFilterFactory from 'components/filters/polygon-filter';
-import {FILTER_TYPES, FILTER_COMPONENTS} from 'utils/filter-utils';
+import {FILTER_TYPES} from 'utils/filter-utils';
 import {ALL_FIELD_TYPES} from 'constants/default-settings';
+
+import FilterPanelHeaderFactory from 'components/side-panel/filter-panel/filter-panel-header';
+import EmptyFilterPanelFactory from 'components/filters/filter-panels/empty-filter-panel';
+import TimeRangeFilterPanelFactory from 'components/filters/filter-panels/time-range-filter-panel';
+import SingleSelectFilterPanelFactory from 'components/filters/filter-panels/single-select-filter-panel';
+import MultiSelectFilterPanelFactory from 'components/filters/filter-panels/Multi-select-filter-panel';
+import RangeFilterPanelFactory from 'components/filters/filter-panels/range-filter-panel';
+import PolygonFilterPanelFactory from 'components/filters/filter-panels/polygon-filter-panel';
 
 const StyledFilterPanel = styled.div`
   margin-bottom: 12px;
@@ -44,43 +42,32 @@ const StyledFilterPanel = styled.div`
   }
 `;
 
-const StyledFilterHeader = styled(StyledPanelHeader)`
-  cursor: pointer;
-  padding: 10px 12px;
-
-  .field-selector {
-    width: calc(100% - 58px);
-  }
-`;
-
-const StyledFilterContent = styled.div`
-  background-color: ${props => props.theme.panelBackground};
-  padding: 12px;
-`;
-
 FilterPanelFactory.deps = [
-  SourceDataSelectorFactory,
-  SingleSelectFilterFactory,
-  MultiSelectFilterFactory,
-  TimeRangeFilterFactory,
-  RangeFilterFactory,
-  PolygonFilterFactory
+  FilterPanelHeaderFactory,
+  EmptyFilterPanelFactory,
+  TimeRangeFilterPanelFactory,
+  SingleSelectFilterPanelFactory,
+  MultiSelectFilterPanelFactory,
+  RangeFilterPanelFactory,
+  PolygonFilterPanelFactory
 ];
 
 function FilterPanelFactory(
-  SourceDataSelector,
-  SingleSelectFilter,
-  MultiSelectFilter,
-  TimeRangeFilter,
-  RangeFilter,
-  PolygonFilter
+  FilterPanelHeader,
+  EmptyFilterPanel,
+  TimeRangeFilterPanel,
+  SingleSelectFilterPanel,
+  MultiSelectFilterPanel,
+  RangeFilterPanel,
+  PolygonFilterPanel
 ) {
-  const FilterComponents = {
-    SingleSelectFilter,
-    MultiSelectFilter,
-    TimeRangeFilter,
-    RangeFilter,
-    PolygonFilter
+  const FilterPanelComponents = {
+    empty: EmptyFilterPanel,
+    [FILTER_TYPES.timeRange]: TimeRangeFilterPanel,
+    [FILTER_TYPES.select]: SingleSelectFilterPanel,
+    [FILTER_TYPES.multiSelect]: MultiSelectFilterPanel,
+    [FILTER_TYPES.range]: RangeFilterPanel,
+    [FILTER_TYPES.polygon]: PolygonFilterPanel
   };
 
   return class FilterPanel extends Component {
@@ -130,65 +117,31 @@ function FilterPanelFactory(
         setFilter,
         toggleAnimation
       } = this.props;
-      const {name, enlarged, type, dataId} = filter;
 
-      const FilterComponent = type && FilterComponents[FILTER_COMPONENTS[type]];
+      const {enlarged, type, dataId} = filter;
+      const FilterFilterComponent = (type && FilterPanelComponents[type]) || FilterPanelComponents.empty;
       const allAvailableFields = this.availableFieldsSelector(this.props);
 
       return (
         <StyledFilterPanel className="filter-panel">
-          <StyledFilterHeader
-            className="filter-panel__header"
-            labelRCGColorValues={datasets[dataId].color}
-          >
-            <FieldSelector
-              inputTheme="secondary"
-              fields={allAvailableFields}
-              value={Array.isArray(name) ? name[0] : name}
-              erasable={false}
-              onSelect={value => setFilter(idx, 'name', value.name)}
-            />
-            <PanelHeaderAction
-              id={filter.id}
-              tooltip="delete"
-              tooltipType="error"
-              onClick={removeFilter}
-              hoverColor={'errorColor'}
-              IconComponent={Trash}
-            />
-            {type === FILTER_TYPES.timeRange && (
-              <PanelHeaderAction
-                id={filter.id}
-                onClick={enlargeFilter}
-                tooltip="Time Playback"
-                IconComponent={Clock}
-                active={enlarged}
-              />
-            )}
-          </StyledFilterHeader>
-          <StyledFilterContent className="filter-panel__content">
-            {Object.keys(datasets).length > 1 && (
-              <SourceDataSelector
-                inputTheme="secondary"
-                datasets={datasets}
-                disabled={filter.freeze}
-                dataId={filter.dataId}
-                onSelect={value => setFilter(idx, 'dataId', value)}
-              />
-            )}
-            {type &&
-            !enlarged && (
-              <div className="filter-panel__filter">
-                <FilterComponent
-                  filter={filter}
-                  idx={idx}
-                  isAnyFilterAnimating={isAnyFilterAnimating}
-                  toggleAnimation={toggleAnimation}
-                  setFilter={value => setFilter(idx, 'value', value)}
-                />
-              </div>
-            )}
-          </StyledFilterContent>
+          <FilterPanelHeader
+            dataset={datasets[dataId[0]]}
+            allAvailableFields={allAvailableFields}
+            setFilter={value => setFilter(idx, 'name', value.name)}
+            idx={idx}
+            filter={filter}
+            removeFilter={removeFilter}
+            enlargeFilter={enlargeFilter}
+            enlarged={enlarged}
+          />
+          <FilterFilterComponent
+            datasets={datasets}
+            filter={filter}
+            idx={idx}
+            isAnyFilterAnimating={isAnyFilterAnimating}
+            toggleAnimation={toggleAnimation}
+            setFilter={value => setFilter(idx, 'value', value)}
+          />
         </StyledFilterPanel>
       );
     }

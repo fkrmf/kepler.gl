@@ -556,3 +556,26 @@ export const MapControlButton = styled.div.attrs({
     color: ${props => props.theme.secondaryBtnActColor};
   }
 `;
+
+export const StyledFilterPanel = styled.div`
+  margin-bottom: 12px;
+  border-radius: 1px;
+
+  .filter-panel__filter {
+    margin-top: 24px;
+  }
+`;
+
+export const StyledFilterHeader = styled(StyledPanelHeader)`
+  cursor: pointer;
+  padding: 10px 12px;
+
+  .field-selector {
+    width: calc(100% - 58px);
+  }
+`;
+
+export const StyledFilterContent = styled.div`
+  background-color: ${props => props.theme.panelBackground};
+  padding: 12px;
+`;
