@@ -1,34 +1,33 @@
 import React from 'react';
+import styled from 'styled-components';
 import {StyledFilterHeader} from 'components/common/styled-components';
 import PanelHeaderAction from 'components/side-panel/panel-header-action';
-import FieldSelector from 'components/common/field-selector';
-import {Trash, Clock} from 'components/common/icons';
-import {FILTER_TYPES} from 'utils/filter-utils';
+import {Trash} from 'components/common/icons';
+
+const StyledChildrenContainer = styled.div`
+  display: flex;
+  flex: 2;
+`;
 
 FilterPanelHeaderFactory.deps = [];
 
 function FilterPanelHeaderFactory() {
   const FilterPanelHeader = ({
-    dataset,
+    children,
+    datasets,
     allAvailableFields,
     setFilter,
     idx,
     filter,
-    removeFilter,
-    enlargeFilter,
-    enlarged
+    removeFilter
   }) => (
     <StyledFilterHeader
       className="filter-panel__header"
-      labelRCGColorValues={dataset.color}
+      labelRCGColorValues={datasets.map(d => d.color)}
     >
-      <FieldSelector
-        inputTheme="secondary"
-        fields={allAvailableFields}
-        value={Array.isArray(filter.name) ? filter.name[0] : filter.name}
-        erasable={false}
-        onSelect={setFilter}
-      />
+      <StyledChildrenContainer>
+        {children}
+      </StyledChildrenContainer>
       <PanelHeaderAction
         id={filter.id}
         tooltip="delete"
@@ -37,15 +36,6 @@ function FilterPanelHeaderFactory() {
         hoverColor={'errorColor'}
         IconComponent={Trash}
       />
-      {filter.type === FILTER_TYPES.timeRange && (
-        <PanelHeaderAction
-          id={filter.id}
-          onClick={enlargeFilter}
-          tooltip="Time Playback"
-          IconComponent={Clock}
-          active={enlarged}
-        />
-      )}
     </StyledFilterHeader>
   );
 

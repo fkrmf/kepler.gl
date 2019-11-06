@@ -18,32 +18,38 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-import React from 'react';
-import styled from 'styled-components';
-import {PanelLabel, PanelValue, SidePanelSection} from '../common/styled-components';
+import React, {useMemo} from 'react';
+import ItemSelector from 'components/common/item-selector/item-selector';
+import {StyledFilterPanel} from './components';
+import {LAYER_TYPES} from 'constants';
 
-const StyledInfo = styled.div`
-  display: flex;
-  .label {
-    flex-grow: 1;
-  }
-`;
+const layerFilter = layer => layer.type === LAYER_TYPES.point;
+const isAlreadySelected = (selectedLayers, layerId) => selectedLayers.findIndex(l => l.id === layerId) === -1;
 
 function PolygonFilterFactory() {
-  const PolygonFilter = React.memo(({
-    filter,
-    setFilter
-  }) => {
-    const {layerId} = filter;
+  const PolygonFilter = React.memo(({filter, layers, setLayers}) => {
+    const selectedLayers = useMemo(() =>
+        layers.filter(l => filter.layerId.includes(l.id)),
+      [filter, layers]);
+
+    const availableLayers = useMemo(() => {
+      return layers.filter(layer => layerFilter(layer) && isAlreadySelected(selectedLayers, layer.id));
+    },
+      [layers, selectedLayers]
+    );
     return (
-      <SidePanelSection>
-        {layerId.map(id => (
-          <StyledInfo>
-            <PanelLabel className="label">Layer</PanelLabel>
-            <PanelValue className="value">{id}</PanelValue>
-          </StyledInfo>
-        ))}
-      </SidePanelSection>
+      <div>
+        <StyledFilterPanel htmlFor={`filter-${filter.id}`}>Layers:</StyledFilterPanel>
+        <ItemSelector
+          options={availableLayers}
+          selectedItems={selectedLayers}
+          onChange={setLayers}
+          searchable={false}
+          multiSelect={true}
+          getOptionValue={l => l.id}
+          displayOption={l => l.config.label}
+        />
+      </div>
     )
   });
 

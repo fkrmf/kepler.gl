@@ -21,6 +21,7 @@
 import styled from 'styled-components';
 import ReactTooltip from 'react-tooltip';
 import {media} from 'styles/media-breakpoints';
+import {createLinearGradient} from 'utils/color-utils';
 
 export const SelectText = styled.span`
   color: ${props => props.theme.labelColor};
@@ -569,10 +570,17 @@ export const StyledFilterPanel = styled.div`
 export const StyledFilterHeader = styled(StyledPanelHeader)`
   cursor: pointer;
   padding: 10px 12px;
-
+  
   .field-selector {
-    width: calc(100% - 58px);
+    flex: 2;
   }
+  
+  border-left: 3px solid;
+  ${props => props.labelRCGColorValues && props.labelRCGColorValues.length > 0 ? 
+  `border-image: ${createLinearGradient('bottom', props.labelRCGColorValues)} 3;` 
+    : 'border-color: transparent;'
+  }
+
 `;
 
 export const StyledFilterContent = styled.div`

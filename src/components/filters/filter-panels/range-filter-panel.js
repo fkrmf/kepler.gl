@@ -20,48 +20,61 @@
 
 import React from 'react';
 import {StyledFilterContent} from 'components/common/styled-components';
-import SourceDataSelectorFactory from 'components/side-panel/common/source-data-selector';
-import EmptyFilterPanelFactory from 'components/filters/filter-panels/empty-filter-panel';
 import RangeFilterFactory from 'components/filters/range-filter';
+import FilterPanelHeaderFactory from 'components/side-panel/filter-panel/filter-panel-header';
+import FieldSelector from 'components/common/field-selector';
 
 RangeFilterPanelFactory.deps = [
-  SourceDataSelectorFactory,
-  EmptyFilterPanelFactory,
+  FilterPanelHeaderFactory,
   RangeFilterFactory
 ];
 
 function RangeFilterPanelFactory(
-  SourceDataSelector,
-  EmptyFilterPanel,
+  FilterPanelHeader,
   RangeFilter
 ) {
   const RangeFilterPanel = React.memo(({
     idx,
     datasets,
+    allAvailableFields,
     filter,
     isAnyFilterAnimating,
     enlargeFilter,
+    removeFilter,
     setFilter,
     toggleAnimation
   }) => (
-    <StyledFilterContent className="filter-panel__content">
-      <EmptyFilterPanel
-        datasets={datasets}
+    <>
+      <FilterPanelHeader
+        datasets={[datasets[filter.dataId[0]]]}
+        allAvailableFields={allAvailableFields}
+        idx={idx}
         filter={filter}
-        setFilter={setFilter}
-      />
-      {filter.type && !filter.enlarged && (
-        <div className="filter-panel__filter">
-          <RangeFilter
-            filter={filter}
-            idx={idx}
-            isAnyFilterAnimating={isAnyFilterAnimating}
-            toggleAnimation={toggleAnimation}
-            setFilter={setFilter}
-          />
-        </div>
-      )}
-    </StyledFilterContent>
+        removeFilter={removeFilter}
+      >
+        <FieldSelector
+          inputTheme="secondary"
+          fields={allAvailableFields}
+          value={Array.isArray(filter.name) ? filter.name[0] : filter.name}
+          erasable={false}
+          onSelect={field => setFilter(idx, 'name', field.name)}
+        />
+      </FilterPanelHeader>
+      <StyledFilterContent className="filter-panel__content">
+        {filter.type && !filter.enlarged && (
+          <div className="filter-panel__filter">
+            <RangeFilter
+              filter={filter}
+              idx={idx}
+              isAnyFilterAnimating={isAnyFilterAnimating}
+              toggleAnimation={toggleAnimation}
+              setFilter={value => setFilter(idx, 'value', value)}
+            />
+          </div>
+        )}
+      </StyledFilterContent>
+    </>
+
   ));
 
   RangeFilterPanel.displayName = 'RangeFilterPanel';

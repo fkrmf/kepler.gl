@@ -19,34 +19,49 @@
 // THE SOFTWARE.
 
 import React from 'react';
-import SourceDataSelectorFactory from 'components/side-panel/common/source-data-selector';
+import FilterPanelHeaderFactory from 'components/side-panel/filter-panel/filter-panel-header';
+import FieldSelector from 'components/common/field-selector';
 
-EmptyFilterPanelFactory.deps = [
-  SourceDataSelectorFactory
+NewFilterPanelFactory.deps = [
+  FilterPanelHeaderFactory
 ];
 
-function EmptyFilterPanelFactory(
-  SourceDataSelector
+function NewFilterPanelFactory(
+  FilterPanelHeader
 ) {
-  const EmptyFilterPanel = React.memo(({
-    datasets,
+  const NewFilterPanel = React.memo(({
+    idx,
     filter,
-    setFilter
-  }) => (
-    <>
-    {Object.keys(datasets).length > 1 && (
-      <SourceDataSelector
-        inputTheme="secondary"
-        datasets={datasets}
-        disabled={filter.freeze}
-        dataId={filter.dataId}
-        onSelect={setFilter}
-      />
-    )}
-    </>
-  ));
+    datasets,
+    allAvailableFields,
+    setFilter,
+    removeFilter,
+    enlargeFilter
+  }) => {
+    return (
+      <FilterPanelHeader
+        dataset={datasets[filter.dataId[0]]}
+        allAvailableFields={allAvailableFields}
+        idx={idx}
+        filter={filter}
+        removeFilter={removeFilter}
+        enlargeFilter={enlargeFilter}
+        enlarged={filter.enlarged}
+      >
+        <FieldSelector
+          inputTheme="secondary"
+          fields={allAvailableFields}
+          value={Array.isArray(filter.name) ? filter.name[0] : filter.name}
+          erasable={false}
+          onSelect={field => setFilter(idx, 'name', field.name)}
+        />
+      </FilterPanelHeader>
+    )
+  });
 
-  return EmptyFilterPanel;
+  NewFilterPanel.displayName = 'NewFilterPanel';
+
+  return NewFilterPanel;
 }
 
-export default EmptyFilterPanelFactory;
+export default NewFilterPanelFactory;

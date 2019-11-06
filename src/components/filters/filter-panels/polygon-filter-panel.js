@@ -18,51 +18,60 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-import React from 'react';
+import React, {useMemo} from 'react';
 import {StyledFilterContent} from 'components/common/styled-components';
-import SourceDataSelectorFactory from 'components/side-panel/common/source-data-selector';
-import EmptyFilterPanelFactory from 'components/filters/filter-panels/empty-filter-panel';
 import PolygonFilterFactory from 'components/filters/polygon-filter';
+import FilterPanelHeaderFactory from 'components/side-panel/filter-panel/filter-panel-header';
+import {StyledFilterPanel} from '../components';
 
 PolygonFilterPanelFactory.deps = [
-  SourceDataSelectorFactory,
-  EmptyFilterPanelFactory,
+  FilterPanelHeaderFactory,
   PolygonFilterFactory
 ];
 
 function PolygonFilterPanelFactory(
-  SourceDataSelector,
-  EmptyFilterPanel,
+  FilterPanelHeader,
   PolygonFilter
 ) {
   const PolygonFilterPanel = React.memo(({
     idx,
     datasets,
+    layers,
+    allAvailableFields,
     filter,
     isAnyFilterAnimating,
     enlargeFilter,
-    setFilter,
-    toggleAnimation
-  }) => (
-    <StyledFilterContent className="filter-panel__content">
-      <EmptyFilterPanel
-        datasets={datasets}
-        filter={filter}
-        setFilter={setFilter}
-      />
-      {filter.type && !filter.enlarged && (
-        <div className="filter-panel__filter">
-          <PolygonFilter
-            filter={filter}
-            idx={idx}
-            isAnyFilterAnimating={isAnyFilterAnimating}
-            toggleAnimation={toggleAnimation}
-            setFilter={setFilter}
-          />
-        </div>
-      )}
-    </StyledFilterContent>
-  ));
+    removeFilter,
+    setFilter
+  }) => {
+
+    const filterDatasets = useMemo(() => filter.dataId.map(d => datasets[d]),
+      [filter, datasets]
+    );
+
+    return (
+      <>
+        <FilterPanelHeader
+          datasets={filterDatasets}
+          allAvailableFields={allAvailableFields}
+          idx={idx}
+          filter={filter}
+          removeFilter={removeFilter}
+        >
+          <StyledFilterPanel>Polygon</StyledFilterPanel>
+        </FilterPanelHeader>
+        <StyledFilterContent className="filter-panel__content">
+          <div className="filter-panel__filter">
+            <PolygonFilter
+              filter={filter}
+              layers={layers}
+              setLayers={layerId => setFilter(idx, 'layerId', layerId)}
+            />
+          </div>
+        </StyledFilterContent>
+      </>
+    )
+  });
 
   PolygonFilterPanel.displayName = 'PolygonFilterPanel';
 

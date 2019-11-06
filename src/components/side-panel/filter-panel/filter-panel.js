@@ -26,7 +26,7 @@ import {FILTER_TYPES} from 'utils/filter-utils';
 import {ALL_FIELD_TYPES} from 'constants/default-settings';
 
 import FilterPanelHeaderFactory from 'components/side-panel/filter-panel/filter-panel-header';
-import EmptyFilterPanelFactory from 'components/filters/filter-panels/empty-filter-panel';
+import NewFilterPanelFactory from 'components/filters/filter-panels/new-filter-panel';
 import TimeRangeFilterPanelFactory from 'components/filters/filter-panels/time-range-filter-panel';
 import SingleSelectFilterPanelFactory from 'components/filters/filter-panels/single-select-filter-panel';
 import MultiSelectFilterPanelFactory from 'components/filters/filter-panels/Multi-select-filter-panel';
@@ -44,7 +44,7 @@ const StyledFilterPanel = styled.div`
 
 FilterPanelFactory.deps = [
   FilterPanelHeaderFactory,
-  EmptyFilterPanelFactory,
+  NewFilterPanelFactory,
   TimeRangeFilterPanelFactory,
   SingleSelectFilterPanelFactory,
   MultiSelectFilterPanelFactory,
@@ -54,7 +54,7 @@ FilterPanelFactory.deps = [
 
 function FilterPanelFactory(
   FilterPanelHeader,
-  EmptyFilterPanel,
+  NewFilterPanel,
   TimeRangeFilterPanel,
   SingleSelectFilterPanel,
   MultiSelectFilterPanel,
@@ -62,7 +62,7 @@ function FilterPanelFactory(
   PolygonFilterPanel
 ) {
   const FilterPanelComponents = {
-    empty: EmptyFilterPanel,
+    default: NewFilterPanel,
     [FILTER_TYPES.timeRange]: TimeRangeFilterPanel,
     [FILTER_TYPES.select]: SingleSelectFilterPanel,
     [FILTER_TYPES.multiSelect]: MultiSelectFilterPanel,
@@ -85,10 +85,10 @@ function FilterPanelFactory(
     };
 
     /* selectors */
-    fieldsSelector = props => props.filter.dataId && props.datasets[props.filter.dataId[0]].fields || [];
+    fieldsSelector = props => props.filter.dataId[0] && props.datasets[props.filter.dataId[0]].fields || [];
     filterSelector = props => props.filters;
     nameSelector = props => props.filter.name;
-    dataIdSelector = props => props.filter.dataId;
+    dataIdSelector = props => props.filter.dataId[0];
 
     // only show current field and field that's not already been used as a filter
     availableFieldsSelector = createSelector(
@@ -108,39 +108,18 @@ function FilterPanelFactory(
 
     render() {
       const {
-        datasets,
-        enlargeFilter,
-        filter,
-        idx,
-        isAnyFilterAnimating,
-        removeFilter,
-        setFilter,
-        toggleAnimation
+        filter
       } = this.props;
 
-      const {enlarged, type, dataId} = filter;
-      const FilterFilterComponent = (type && FilterPanelComponents[type]) || FilterPanelComponents.empty;
+      const {type} = filter;
+      const FilterFilterComponent = (type && FilterPanelComponents[type]) || FilterPanelComponents.default;
       const allAvailableFields = this.availableFieldsSelector(this.props);
 
       return (
         <StyledFilterPanel className="filter-panel">
-          <FilterPanelHeader
-            dataset={datasets[dataId[0]]}
-            allAvailableFields={allAvailableFields}
-            setFilter={value => setFilter(idx, 'name', value.name)}
-            idx={idx}
-            filter={filter}
-            removeFilter={removeFilter}
-            enlargeFilter={enlargeFilter}
-            enlarged={enlarged}
-          />
           <FilterFilterComponent
-            datasets={datasets}
-            filter={filter}
-            idx={idx}
-            isAnyFilterAnimating={isAnyFilterAnimating}
-            toggleAnimation={toggleAnimation}
-            setFilter={value => setFilter(idx, 'value', value)}
+            allAvailableFields={allAvailableFields}
+            {...this.props}
           />
         </StyledFilterPanel>
       );

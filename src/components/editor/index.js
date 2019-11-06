@@ -34,16 +34,18 @@ import {
   getStyle as getEditHandleStyle,
   getEditHandleShape
 } from './handle-style';
-import {EDITOR_MODES} from 'constants';
+import {EDITOR_MODES, LAYER_TYPES} from 'constants';
 
 const DELETE_KEY_EVENT_CODE = 8;
 const ESCAPE_KEY_EVENT_CODE = 27;
+
+const EDITOR_STYLE = {zIndex: 1};
 
 const StyledWrapper = styled.div`
   cursor: ${props => props.editor.mode === EDITOR_MODES.EDIT_VERTEX ? 'pointer' : 'crosshair'};
 `;
 
-const EDITOR_STYLE = {zIndex: 1};
+const layerFilter = layer => layer.type === LAYER_TYPES.point;
 
 class Draw extends Component {
   static propTypes = {
@@ -148,6 +150,7 @@ class Draw extends Component {
     const {selectedFeature = {}} = editor;
     const selectedFeatureId = (selectedFeature || {}).id;
     const currentFilter = filters.find(f => f.value.id === selectedFeatureId);
+    const availableLayers = layers.filter(layerFilter);
 
     return (
       <StyledWrapper
@@ -170,7 +173,7 @@ class Draw extends Component {
         {this.state.showActions && Boolean(selectedFeature) ? (
           <FeatureActionPanel
             datasets={datasets}
-            layers={layers}
+            layers={availableLayers}
             currentFilter={currentFilter}
             onClose={this._closeFeatureAction}
             onDeleteFeature={this._onDeleteSelectedFeature}

@@ -458,13 +458,17 @@ const filterDataMatchers = {
     const val = field ? data[field.tableFieldIndex - 1] : null;
     return val === filter.value
   },
+  // layers contain only layers for the current dataset
   [FILTER_TYPES.polygon]: (data, filter, index, field, layers) => {
     if (!(layers || layers.length === 0)) {
       return true;
     }
 
     // determine which layers to apply the filter on
-    const currentLayers = filter.layerId.map(id => layers.find(l => l.id === id));
+    const currentLayers = filter.layerId.map(id =>
+      layers.find(l => l.id === id)
+      // we may get null value because filter.layerId may contain layers from other datasets
+    ).filter(l => Boolean(l));
 
     return currentLayers.every(layer => {
       const {lat, lng} = layer.config.columns;
